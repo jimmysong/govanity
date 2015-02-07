@@ -38,14 +38,7 @@ func main() {
 	for {
 		pubkey.X, pubkey.Y = s256.ScalarBaseMult(seed)
 
-		addr1, err := btcutil.NewAddressPubKey(pubkey.SerializeCompressed(), net)
-
-		if err != nil {
-			fmt.Printf("failed to get pubkey: %s\n", err)
-			os.Exit(1)
-		}
-
-		addr2, err := btcutil.NewAddressPubKey(pubkey.SerializeUncompressed(), net)
+		addr1, err := btcutil.NewAddressPubKey(pubkey.SerializeUncompressed(), net)
 
 		if err != nil {
 			fmt.Printf("failed to get pubkey: %s\n", err)
@@ -53,11 +46,9 @@ func main() {
 		}
 
 		str1 := addr1.EncodeAddress()
-		str2 := addr2.EncodeAddress()
-
 		if strings.HasPrefix(str1, prefix) {
 			privkey, _ := btcec.PrivKeyFromBytes(s256, seed)
-			wif, err := btcutil.NewWIF(privkey, net, true)
+			wif, err := btcutil.NewWIF(privkey, net, false)
 			if err != nil {
 				fmt.Printf("failed to get wif: %s\n", err)
 				os.Exit(1)
@@ -65,18 +56,9 @@ func main() {
 			fmt.Printf("\nElapsed: %s\naddr: %s\nwif: %s\n", time.Since(beginTime), str1, wif.String())
 		}
 
-		if strings.HasPrefix(str2, prefix) {
-			privkey, _ := btcec.PrivKeyFromBytes(s256, seed)
-			wif, err := btcutil.NewWIF(privkey, net, false)
-			if err != nil {
-				fmt.Printf("failed to get wif: %s\n", err)
-				os.Exit(1)
-			}
-			fmt.Printf("\nElapsed: %s\naddr: %s\nwif: %s\n", time.Since(beginTime), str2, wif.String())
-		}
-
 		seed[0]--
 		for i := 0; seed[i] == 0; i++ {
+			seed[i] = 255
 			seed[i+1]--
 		}
 	}
