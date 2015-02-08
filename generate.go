@@ -27,7 +27,6 @@ func inBetween(c, a, b []byte) bool {
 }
 
 func main() {
-	beginTime := time.Now()
 
 	var prefix string
 	flag.StringVar(&prefix, "prefix", "123", "prefix you want for your vanity address")
@@ -73,6 +72,7 @@ func main() {
 	}
 	highBytes = highBytes[1:21]
 
+	beginTime := time.Now()
 	for {
 		x, y = s256.ScalarBaseMult(seed)
 
@@ -97,16 +97,17 @@ func main() {
 		h := btcutil.Hash160(serialized[:])
 
 		if inBetween(h, lowBytes, highBytes) {
-			privkey, pubkey := btcec.PrivKeyFromBytes(s256, seed)
+			privkey, _ := btcec.PrivKeyFromBytes(s256, seed)
 			wif, err := btcutil.NewWIF(privkey, net, false)
 			if err != nil {
 				fmt.Printf("failed to get wif: %s\n", err)
 				os.Exit(1)
 			}
-			addr, _ := btcutil.NewAddressPubKey(pubkey.SerializeUncompressed(), net)
+			addr := base58.CheckEncode(btcutil.Hash160(serialized[:]),
+				net.PubKeyHashAddrID)
 			numFound++
 			fmt.Printf("\nElapsed: %s\naddr: %s\nwif: %s\nnumfound: %d\n",
-				time.Since(beginTime), addr.EncodeAddress(), wif.String(),
+				time.Since(beginTime), addr, wif.String(),
 				numFound)
 
 		}
