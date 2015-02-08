@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -14,6 +13,18 @@ import (
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcutil/base58"
 )
+
+func inBetween(c, a, b []byte) bool {
+	for i := 0; i < 20; i++ {
+		if c[i] > a[i] && c[i] < b[i] {
+			return true
+		} else if c[i] == a[i] || c[i] == b[i] {
+			continue
+		}
+		return false
+	}
+	return true
+}
 
 func main() {
 	beginTime := time.Now()
@@ -39,6 +50,29 @@ func main() {
 	var zeros [32]byte
 	var serialized [65]byte
 	serialized[0] = 0x04 // Uncompressed pubkeys always start with 0x04.
+
+	pubkey := btcec.PublicKey{}
+	pubkey.Curve = s256
+
+	// figure out the lowest and highest bytes for this prefix
+	lowest := prefix + "1111"
+	lowBytes := base58.Decode(lowest)
+
+	for len(lowBytes) < 25 {
+		lowest += "1"
+		lowBytes = base58.Decode(lowest)
+	}
+	lowBytes = lowBytes[1:21]
+
+	highest := prefix + "zzzz"
+	highBytes := base58.Decode(highest)
+
+	for len(highBytes) < 25 {
+		highest += "z"
+		highBytes = base58.Decode(highest)
+	}
+	highBytes = highBytes[1:21]
+
 	for {
 		x, y = s256.ScalarBaseMult(seed)
 
@@ -60,20 +94,21 @@ func main() {
 			copy(serialized[33:], yBytes)
 		}
 
-		// Encode the address and check the prefix.
-		addr := base58.CheckEncode(btcutil.Hash160(serialized[:]),
-			net.PubKeyHashAddrID)
-		if strings.HasPrefix(addr, prefix) {
-			privkey, _ := btcec.PrivKeyFromBytes(s256, seed)
+		h := btcutil.Hash160(serialized[:])
+
+		if inBetween(h, lowBytes, highBytes) {
+			privkey, pubkey := btcec.PrivKeyFromBytes(s256, seed)
 			wif, err := btcutil.NewWIF(privkey, net, false)
 			if err != nil {
 				fmt.Printf("failed to get wif: %s\n", err)
 				os.Exit(1)
 			}
+			addr, _ := btcutil.NewAddressPubKey(pubkey.SerializeUncompressed(), net)
 			numFound++
 			fmt.Printf("\nElapsed: %s\naddr: %s\nwif: %s\nnumfound: %d\n",
-				time.Since(beginTime), addr, wif.String(),
+				time.Since(beginTime), addr.EncodeAddress(), wif.String(),
 				numFound)
+
 		}
 
 		seed[0]--
